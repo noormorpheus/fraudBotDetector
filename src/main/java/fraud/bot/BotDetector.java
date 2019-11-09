@@ -53,6 +53,7 @@ public class BotDetector {
                 new BufferedWriter(
                         new FileWriter("/Users/noor.mazhar/repositories/fraudBotDetector/src/test/resources/detectedBots"));
         int cnt = 0;
+        System.out.println("START --> " +new DateTime());
         while (true) {
             ConsumerRecords<Integer, String> consumerRecords = kafkaConsumer.poll(Duration.ofMillis(1000));
 
@@ -61,8 +62,7 @@ public class BotDetector {
                 break;
             }
             consumerRecords.forEach(record -> {
-//                       System.out.println("Key::" + record.key());
-                System.out.println("value::" + record.value());
+//                System.out.println("value::" + record.value());
                 String logRecord = record.value();
                 String[] logRecordArry = logRecord.split(" ");
                 String sourceIpAddr = logRecordArry[0];
@@ -111,6 +111,7 @@ public class BotDetector {
 //                break;
             }
         }
+        System.out.println("END --> " +new DateTime());
         Thread.sleep(4000);
         kafkaConsumer.close();
     }
