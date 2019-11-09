@@ -33,6 +33,8 @@ public class TestKafkaProducer {
                     ProducerRecord<Integer, String> producerRecord =
                             new ProducerRecord<Integer, String>(IKafkaConst.TOPIC_NAME, str);
                     RecordMetadata recordMetadata = producer.send(producerRecord).get();
+                    System.out.println("Record sent:: " + str + " to partition:: " + recordMetadata.partition()
+                            + " with offset:: " + recordMetadata.offset());
                 } catch (ExecutionException e1) {
                     e1.printStackTrace();
                 } catch (InterruptedException e2) {

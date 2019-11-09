@@ -16,17 +16,19 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
 
-public class BotDetector {
+public class OptimizedBotDetector {
     Map<String, Deque<DateTime>> ip_dateTimeMap;
     DateTimeFormatter dateTimeFormatter;
-    Set<String> detected_bots;
+    Map<String, AccessCnt> candidate_bots;
+    Set<String> finalDetectedBots;
 
-    public BotDetector () {
+    public OptimizedBotDetector() {
         //<sourceIpAddr -> Deque<AccessTime>
         ip_dateTimeMap = new HashMap<>();
         dateTimeFormatter = DateTimeFormat.forPattern("dd/MMM/yyyy:HH:mm:ss");
         //set<sourceIpAddr>
-        detected_bots = new HashSet<>();
+        candidate_bots = new HashMap<>();
+        finalDetectedBots = new HashSet<>();
     }
 
     public Consumer<Integer, String> createConsumer () {
@@ -48,6 +50,9 @@ public class BotDetector {
 
     private void performDDOSDetection (Consumer kafkaConsumer) throws Exception {
         int good_threshold  = 6;
+        //how many windows particular ip addr exceeded good_threshold, if a particular ip addr exceeds threshold
+        //in a lot of 1s windows then its most likely a bot
+        int threshold_4_windows_cnt = 4;
 
         BufferedWriter bufferedWriter =
                 new BufferedWriter(
@@ -71,38 +76,61 @@ public class BotDetector {
                 DateTime accessTime = dateTimeFormatter.parseDateTime(logTS);
 
                 //only process that are not bots
-                if (!detected_bots.contains(sourceIpAddr)) {
+                if (!finalDetectedBots.contains(sourceIpAddr)) {
                     if (!ip_dateTimeMap.containsKey(sourceIpAddr)) {
                         Deque<DateTime> logDateTimeList = new LinkedList<>();
                         logDateTimeList.addLast(accessTime);
                         ip_dateTimeMap.put(sourceIpAddr, logDateTimeList);
                     } else {
-                        //check if time difference is greater than 2 s, if yes then evict old entry
-                        //if time delta is less than 2 s, check list count, if list count > 20 then mark as bot
+                        //check if time difference is greater than 1s, if yes then evict old entry
+                        //if time delta is less than 1s, check list count, if list count > good_threshold then mark as bot
                         Deque<DateTime> tsList = ip_dateTimeMap.get(sourceIpAddr);
                         //do windowing checks to validate if number of hits to endpoint within 1s is within threshold
-                        if (((accessTime.getMillis() - tsList.getFirst().getMillis()) > 1000)
-                                && tsList.size() < good_threshold){
-                            //beyond the 1s window, so evict
+                        if (((accessTime.getMillis() - tsList.getFirst().getMillis()) > 1000)){
+                            //beyond the 1s window, so evict, this keeps memory pressure low
                             ip_dateTimeMap.remove(sourceIpAddr);
                         } else if (((accessTime.getMillis() - tsList.getFirst().getMillis()) <= 1000)) {
                             if (tsList.size() >= good_threshold) {
-                                //a bot detected capture it
-                                detected_bots.add(sourceIpAddr);
-                                try {
-                                    bufferedWriter.write(sourceIpAddr);
-                                    bufferedWriter.newLine();
-                                    bufferedWriter.flush();
-                                    ip_dateTimeMap.remove(sourceIpAddr);
-                                }catch (IOException e) {
-                                    e.printStackTrace();
+                                //a probable bot detected capture it
+                                if (candidate_bots.containsKey(sourceIpAddr)) {
+                                    //check over a window of 1 to 2 minutes how many times speed threshold exceeded
+                                    AccessCnt accessCnt = candidate_bots.get(sourceIpAddr);
+                                    int newCnt = accessCnt.getCnt() + 1;
+                                    accessCnt.setCnt(newCnt);
+                                    if ((accessTime.getMillis() - accessCnt.getFirstAccessTime().getMillis()) > 60000) {
+                                        //evict entry as we dont look beyond minute
+                                        candidate_bots.remove(sourceIpAddr);
+                                    } else {
+                                        if (newCnt > threshold_4_windows_cnt) {
+                                            //definitely a bot as its repeatedly doing too many hits
+                                            try {
+                                                finalDetectedBots.add(sourceIpAddr);
+                                                bufferedWriter.write(sourceIpAddr);
+                                                bufferedWriter.newLine();
+                                                bufferedWriter.flush();
+                                                ip_dateTimeMap.remove(sourceIpAddr);
+                                            } catch (IOException e) {
+                                                e.printStackTrace();
+                                            }
+                                        } else {
+                                            candidate_bots.put(sourceIpAddr, accessCnt);
+                                        }
+                                    }
+                                } else {
+                                    //a probable candidate for bot detected since within a 1s too many hits
+                                    AccessCnt accessCnt = new AccessCnt();
+                                    accessCnt.setCnt(1);
+                                    accessCnt.setFirstAccessTime(accessTime);
+                                    candidate_bots.put(sourceIpAddr, accessCnt);
                                 }
                             } else {
+                                //within the good threshold
                                 tsList.addLast(accessTime);
                             }
                         }
                     }
                 }
+
             });
 
 
@@ -122,7 +150,7 @@ public class BotDetector {
      */
     public static void main (String[] args) {
         try {
-            BotDetector botDetector = new BotDetector () ;
+            OptimizedBotDetector botDetector = new OptimizedBotDetector() ;
             Consumer kafkaConsumer = botDetector.createConsumer();
             botDetector.performDDOSDetection(kafkaConsumer);
         } catch (Exception ex) {
