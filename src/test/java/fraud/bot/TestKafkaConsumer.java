@@ -99,6 +99,7 @@ public class TestKafkaConsumer {
                                     ip_dateTimeMap.remove(sourceIpAddr);
                                 }catch (IOException e) {
                                     e.printStackTrace();
+                                    
                                 }
                             } else {
                                 tsList.addLast(accessTime);
