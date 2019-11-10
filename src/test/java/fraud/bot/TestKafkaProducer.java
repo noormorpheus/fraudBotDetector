@@ -31,10 +31,16 @@ public class TestKafkaProducer {
             while ((str = bufferedReader.readLine()) != null) {
                 try {
                     ProducerRecord<Integer, String> producerRecord =
-                            new ProducerRecord<Integer, String>(IKafkaConst.TOPIC_NAME, str);
+                            new ProducerRecord<Integer, String>(IKafkaConst.OTPT_TOPIC_NAME, str);
                     RecordMetadata recordMetadata = producer.send(producerRecord).get();
                     System.out.println("Record sent:: " + str + " to partition:: " + recordMetadata.partition()
                             + " with offset:: " + recordMetadata.offset());
+
+                    ++cnt;
+
+                    if (cnt == 1000) {
+                        break;
+                    }
                 } catch (ExecutionException e1) {
                     e1.printStackTrace();
                 } catch (InterruptedException e2) {

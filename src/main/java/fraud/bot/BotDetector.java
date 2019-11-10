@@ -59,8 +59,11 @@ public class BotDetector {
 
             if (consumerRecords.count() == 0) {
                 //no more records to process from Kafka
-                break;
+                Thread.sleep(5000);
+                continue;
+//                break;
             }
+            Thread.sleep(5000);
             consumerRecords.forEach(record -> {
                 System.out.println("value::" + record.value());
                 String logRecord = record.value();
@@ -111,9 +114,9 @@ public class BotDetector {
 //                break;
             }
         }
-        System.out.println("END --> " +new DateTime());
-        Thread.sleep(4000);
-        kafkaConsumer.close();
+//        System.out.println("END --> " +new DateTime());
+//        Thread.sleep(4000);
+//        kafkaConsumer.close();
     }
 
     /**

@@ -36,7 +36,7 @@ public class TestKafkaConsumer {
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, IKafkaConst.OFFSET_RESET_EARLIER);
 
         Consumer<Integer, String> kafkaConsumer = new KafkaConsumer(props);
-        kafkaConsumer.subscribe(Collections.singletonList(IKafkaConst.TOPIC_NAME));
+        kafkaConsumer.subscribe(Collections.singletonList(IKafkaConst.OTPT_TOPIC_NAME));
 
         return kafkaConsumer;
 
@@ -52,17 +52,22 @@ public class TestKafkaConsumer {
                 new BufferedWriter(
                         new FileWriter("/Users/noor.mazhar/repositories/fraudBotDetector/src/test/resources/detectedBots"));
         int cnt = 0;
+        int cnt_no_record_fetched = 0;
         while (true) {
             ConsumerRecords<Integer, String> consumerRecords = kafkaConsumer.poll(Duration.ofMillis(1000));
-
             if (consumerRecords.count() == 0) {
+                ++cnt_no_record_fetched;
                 //no more records to process from Kafka
-                break;
+                if (cnt_no_record_fetched == 5){
+                    break;
+                } else {
+                    continue;
+                }
             }
-            consumerRecords.forEach(record -> {
-//                       System.out.println("Key::" + record.key());
+            for (ConsumerRecord record : consumerRecords){
                 System.out.println("value::" + record.value());
-                String logRecord = record.value();
+                System.out.println("value::" + record.value());
+                String logRecord = (String)record.value();
                 String[] logRecordArry = logRecord.split(" ");
                 String sourceIpAddr = logRecordArry[0];
                 String tmp = logRecordArry[3];
@@ -101,18 +106,14 @@ public class TestKafkaConsumer {
                         }
                     }
                 }
-                //               System.out.println("Record partition " + record.partition());
-                //               System.out.println("Record offset " + record.offset());
-            });
-
-
+            }
             ++cnt;
             if (cnt == 1000) {
 //                break;
             }
         }
-        Thread.sleep(4000);
-        kafkaConsumer.close();
+//        Thread.sleep(4000);
+//        kafkaConsumer.close();
     }
 
 
