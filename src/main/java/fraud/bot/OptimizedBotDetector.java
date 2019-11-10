@@ -49,7 +49,7 @@ public class OptimizedBotDetector {
     }
 
     private void performDDOSDetection (Consumer kafkaConsumer) throws Exception {
-        int good_threshold  = 6;
+        int good_threshold  = 5;
         //how many windows particular ip addr exceeded good_threshold, if a particular ip addr exceeds threshold
         //in a lot of 1s windows then its most likely a bot
         int threshold_4_windows_cnt = 4;
@@ -59,12 +59,18 @@ public class OptimizedBotDetector {
                         new FileWriter("/Users/noor.mazhar/repositories/fraudBotDetector/src/test/resources/detectedBots"));
         int cnt = 0;
         System.out.println("START --> " +new DateTime());
+        int cnt_no_record_fetched = 0;
         while (true) {
             ConsumerRecords<Integer, String> consumerRecords = kafkaConsumer.poll(Duration.ofMillis(1000));
 
             if (consumerRecords.count() == 0) {
+                ++cnt_no_record_fetched;
                 //no more records to process from Kafka
-                break;
+                if (cnt_no_record_fetched == 5){
+                    break;
+                } else {
+                    continue;
+                }
             }
             consumerRecords.forEach(record -> {
                 System.out.println("value::" + record.value());
@@ -132,12 +138,6 @@ public class OptimizedBotDetector {
                 }
 
             });
-
-
-            ++cnt;
-            if (cnt == 1000) {
-//                break;
-            }
         }
         System.out.println("END --> " +new DateTime());
         Thread.sleep(4000);

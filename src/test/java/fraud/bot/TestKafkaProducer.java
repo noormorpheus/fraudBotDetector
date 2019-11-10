@@ -31,16 +31,16 @@ public class TestKafkaProducer {
             while ((str = bufferedReader.readLine()) != null) {
                 try {
                     ProducerRecord<Integer, String> producerRecord =
-                            new ProducerRecord<Integer, String>(IKafkaConst.OTPT_TOPIC_NAME, str);
+                            new ProducerRecord<Integer, String>(IKafkaConst.TOPIC_NAME, str);
                     RecordMetadata recordMetadata = producer.send(producerRecord).get();
-                    System.out.println("Record sent:: " + str + " to partition:: " + recordMetadata.partition()
+                    System.out.println("Record sent:: "  + " to partition:: " + recordMetadata.partition()
                             + " with offset:: " + recordMetadata.offset());
 
                     ++cnt;
 
-                    if (cnt == 1000) {
-                        break;
-                    }
+//                    if (cnt == 1000) {
+//                        break;
+//                    }
                 } catch (ExecutionException e1) {
                     e1.printStackTrace();
                 } catch (InterruptedException e2) {
@@ -48,19 +48,6 @@ public class TestKafkaProducer {
                 }
             }
 
-//            for (int i = 0; i < 2; ++i) {
-//                ProducerRecord<String, String> producerRecord = new ProducerRecord<String, String>(IKafkaConst.TOPIC_NAME,
-//                        "This is record:: " + i);
-//                try {
-//                    RecordMetadata recordMetadata = producer.send(producerRecord).get();
-//                    System.out.println("Record sent with key:: " + i + " to partition:: " + recordMetadata.partition()
-//                            + " with offset:: " + recordMetadata.offset());
-//                }catch (ExecutionException e1) {
-//                    e1.printStackTrace();
-//                }catch (InterruptedException e2) {
-//                    e2.printStackTrace();
-//                }
-//            }
 
         } catch (Exception ex) {
             ex.printStackTrace();

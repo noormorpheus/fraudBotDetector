@@ -54,14 +54,18 @@ public class BotDetector {
                         new FileWriter("/Users/noor.mazhar/repositories/fraudBotDetector/src/test/resources/detectedBots"));
         int cnt = 0;
         System.out.println("START --> " +new DateTime());
+        int cnt_no_record_fetched = 0;
         while (true) {
             ConsumerRecords<Integer, String> consumerRecords = kafkaConsumer.poll(Duration.ofMillis(1000));
 
             if (consumerRecords.count() == 0) {
+                ++cnt_no_record_fetched;
                 //no more records to process from Kafka
-                Thread.sleep(5000);
-                continue;
-//                break;
+                if (cnt_no_record_fetched == 5){
+                    break;
+                } else {
+                    continue;
+                }
             }
             Thread.sleep(5000);
             consumerRecords.forEach(record -> {
@@ -108,15 +112,10 @@ public class BotDetector {
                 }
             });
 
-
-            ++cnt;
-            if (cnt == 1000) {
-//                break;
-            }
         }
-//        System.out.println("END --> " +new DateTime());
-//        Thread.sleep(4000);
-//        kafkaConsumer.close();
+        System.out.println("END --> " +new DateTime());
+        Thread.sleep(4000);
+        kafkaConsumer.close();
     }
 
     /**
