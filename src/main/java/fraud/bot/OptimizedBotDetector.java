@@ -84,20 +84,18 @@ public class OptimizedBotDetector {
                 //only process that are not bots
                 if (!finalDetectedBots.contains(sourceIpAddr)) {
                     if (!ip_dateTimeMap.containsKey(sourceIpAddr)) {
-                        Deque<DateTime> logDateTimeList = new LinkedList<>();
-                        logDateTimeList.addLast(accessTime);
-                        ip_dateTimeMap.put(sourceIpAddr, logDateTimeList);
+                        ipSeenFirstTime(accessTime, sourceIpAddr);
                     } else {
                         //check if time difference is greater than 1s, if yes then evict old entry
                         //if time delta is less than 1s, check list count, if list count > good_threshold then mark as bot
                         Deque<DateTime> tsList = ip_dateTimeMap.get(sourceIpAddr);
                         //do windowing checks to validate if number of hits to endpoint within 1s is within threshold
-                        if (((accessTime.getMillis() - tsList.getFirst().getMillis()) > 1000)){
+                        if (check1sWindowBreach(accessTime, tsList)){
                             //beyond the 1s window, so evict, this keeps memory pressure low
                             ip_dateTimeMap.remove(sourceIpAddr);
-                        } else if (((accessTime.getMillis() - tsList.getFirst().getMillis()) <= 1000)) {
+                        } else {
                             if (tsList.size() >= good_threshold) {
-                                //a probable bot detected capture it
+                                //a probable bot detected, further validate if this bot has been very active in the 1 minute window
                                 if (candidate_bots.containsKey(sourceIpAddr)) {
                                     //check over a window of 1 to 2 minutes how many times speed threshold exceeded
                                     AccessCnt accessCnt = candidate_bots.get(sourceIpAddr);
@@ -119,11 +117,13 @@ public class OptimizedBotDetector {
                                                 e.printStackTrace();
                                             }
                                         } else {
+                                            //the candidate bot has not yet shown enough activity in the 1 minute window so update cnt for future check
                                             candidate_bots.put(sourceIpAddr, accessCnt);
                                         }
                                     }
                                 } else {
                                     //a probable candidate for bot detected since within a 1s too many hits
+                                    //the very first of 1s window detected
                                     AccessCnt accessCnt = new AccessCnt();
                                     accessCnt.setCnt(1);
                                     accessCnt.setFirstAccessTime(accessTime);
@@ -142,6 +142,19 @@ public class OptimizedBotDetector {
         System.out.println("END --> " +new DateTime());
         Thread.sleep(4000);
         kafkaConsumer.close();
+    }
+
+    private void ipSeenFirstTime (DateTime accessTime, String sourceIpAddr) {
+        Deque<DateTime> logDateTimeList = new LinkedList<>();
+        logDateTimeList.addLast(accessTime);
+        ip_dateTimeMap.put(sourceIpAddr, logDateTimeList);
+    }
+
+    private boolean check1sWindowBreach (DateTime accessTime, Deque<DateTime> tsList) {
+        if (((accessTime.getMillis() - tsList.getFirst().getMillis()) > 1000)){
+            return true;
+        }
+        return false;
     }
 
     /**
